@@ -42,6 +42,7 @@ from matplotlib import pyplot as plt
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import pandas as pd
+import rioxarray
 ```
 
 +++ {"user_expressions": []}
@@ -183,8 +184,19 @@ case_monthly=case.resample(time='1MS').mean(dim='time')
 ```
 
 ```{code-cell} ipython3
-savg = (case.sel(lat=slice(-90,0))*weight).mean(dim=('lat','lon')).resample(time='1MS').mean(dim='time').load()
-navg = (case.sel(lat=slice(0,90))*weight).mean(dim=('lat','lon')).resample(time='1MS').mean(dim='time').load()
+case.sel(lat=slice(-90,0)).lat
+```
+
+```{code-cell} ipython3
+coslat = np.cos(np.deg2rad(case.sel(lat=slice(0,90)).lat))
+weight1 = coslat / coslat.mean(dim='lat')
+
+#savg = (case.sel(lat=slice(-90,0))*weight1).mean(dim=('lat','lon')).resample(time='1MS').mean(dim='time').load()
+navg = (case.sel(lat=slice(0,90))*weight1).mean(dim=('lat','lon')).resample(time='1MS').mean(dim='time').load()
+```
+
+```{code-cell} ipython3
+
 ```
 
 ```{code-cell} ipython3
@@ -195,12 +207,12 @@ n2 = navg.min(dim='member_id').load()
 ```
 
 ```{code-cell} ipython3
-savg.to_netcdf('south_avg_mon.nc')
+#savg.to_netcdf('south_avg_mon.nc')
 navg.to_netcdf('north_avg_mon.nc')
 ```
 
 ```{code-cell} ipython3
-globavg = globavg.resample(time='1MS').mean(dim='time').load()
+#globavg = globavg.resample(time='1MS').mean(dim='time').load()
 ```
 
 ```{code-cell} ipython3
@@ -223,6 +235,47 @@ plt.grid()
 ```
 
 ```{code-cell} ipython3
+fig, ax = plt.subplots(figsize=(12,6))
+for ens in range(40):
+    plt.plot(time_axis, navg.isel(member_id=ens),c='k',linewidth=0.1)
+plt.plot(time_axis, navg.mean(dim='member_id'),c='r',linewidth=1)
+plt.fill_between(time_axis, n1, n2, color = 'cyan', alpha = 0.4)
+plt.ylabel('Avg surface wind speed (m/s)',fontsize=13)
+plt.title('Northern surface wind speed variability',fontsize=13)
+plt.grid()
+```
+
+```{code-cell} ipython3
+fig, ax = plt.subplots(figsize=(12,6))
+for ens in range(40):
+    plt.plot(time_axis, savg.isel(member_id=ens),c='k',linewidth=0.1)
+plt.plot(time_axis, savg.mean(dim='member_id'),c='r',linewidth=1)
+plt.fill_between(time_axis, s1, s2, color = 'cyan', alpha = 0.4)
+plt.ylabel('Avg surface wind speed (m/s)',fontsize=13)
+plt.title('Southern surface wind speed variability',fontsize=13)
+plt.grid()
+```
+
+```{code-cell} ipython3
+fig, ax = plt.subplots(figsize=(12,6))
+plt.plot(time_axis, navg.mean(dim='member_id'),c='b',linewidth=1,label='Northern H.')
+plt.plot(time_axis, savg.mean(dim='member_id'),c='r',linewidth=1,label='Southern H.')
+plt.plot(time_axis, globavg.mean(dim='member_id'),c='k',linewidth=1,label='Global')
+#plt.fill_between(time_axis, s1, s2, color = 'cyan', alpha = 0.4)
+plt.ylabel('Avg surface wind speed (m/s)',fontsize=13)
+plt.title('Surface wind speed variability',fontsize=13)
+plt.legend()
+plt.grid()
+```
+
+look at ERA5:
+
+```{code-cell} ipython3
+xr = rioxarray.open_rasterio('C:/Users/jillp/Downloads/clim/10m_speed_90s.nc')
+xr
+```
+
+```{code-cell} ipython3
 time_axis = globavg.isel(time=slice(12,24)).indexes['time'].to_datetimeindex()
 fig, ax = plt.subplots(figsize=(12,6))
 for ens in range(40):
@@ -236,10 +289,6 @@ plt.grid()
 
 ```{code-cell} ipython3
 globavg.to_netcdf('global_avg_mon.nc')
-```
-
-```{code-cell} ipython3
-globavg.time
 ```
 
 +++ {"user_expressions": []}
