@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.4
+    jupytext_version: 1.14.5
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -40,7 +40,6 @@ import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
 import pandas as pd
 import rioxarray
 ```
@@ -65,6 +64,7 @@ url ="https://raw.githubusercontent.com/NCAR/cesm-lens-aws/main/intake-catalogs/
 ```
 
 ```{code-cell} ipython3
+cat = intake.open_esm_datastore(url)
 cat.df
 ```
 
@@ -85,10 +85,6 @@ Let's query the data catalog to see what models(`source_id`), experiments
 
 ```{code-cell} ipython3
 unique = cat.unique()
-unique
-```
-
-```{code-cell} ipython3
 # Let's look at the different variables that are available:
 unique['variable']
 ```
@@ -97,11 +93,6 @@ unique['variable']
 # If you don't know the shorthand for the variable you're interested in, we can look 
 # at the "long_name" instead, which is a more descriptive version of the variable name:
 unique['long_name']
-```
-
-```{code-cell} ipython3
-# Let's look at the different experiments that are available:
-unique['experiment']
 ```
 
 +++ {"user_expressions": []}
@@ -122,7 +113,7 @@ In the example below, we are are going to search for the following:
 
 ```{code-cell} ipython3
 cat_subset = cat.search(
-    experiment=["CTRL","20C","HIST", "RCP85"],
+    experiment=["CTRL","20C","RCP85"],
     variable='WSPDSRFAV',
 )
 
@@ -192,7 +183,7 @@ coslat = np.cos(np.deg2rad(case.sel(lat=slice(0,90)).lat))
 weight1 = coslat / coslat.mean(dim='lat')
 
 #savg = (case.sel(lat=slice(-90,0))*weight1).mean(dim=('lat','lon')).resample(time='1MS').mean(dim='time').load()
-navg = (case.sel(lat=slice(0,90))*weight1).mean(dim=('lat','lon')).resample(time='1MS').mean(dim='time').load()
+#navg = (case.sel(lat=slice(0,90))*weight1).mean(dim=('lat','lon')).resample(time='1MS').mean(dim='time').load()
 ```
 
 ```{code-cell} ipython3
@@ -208,11 +199,15 @@ n2 = navg.min(dim='member_id').load()
 
 ```{code-cell} ipython3
 #savg.to_netcdf('south_avg_mon.nc')
-navg.to_netcdf('north_avg_mon.nc')
+#navg.to_netcdf('north_avg_mon.nc')
 ```
 
 ```{code-cell} ipython3
 #globavg = globavg.resample(time='1MS').mean(dim='time').load()
+```
+
+```{code-cell} ipython3
+
 ```
 
 ```{code-cell} ipython3
@@ -288,7 +283,7 @@ plt.grid()
 ```
 
 ```{code-cell} ipython3
-globavg.to_netcdf('global_avg_mon.nc')
+#globavg.to_netcdf('global_avg_mon.nc')
 ```
 
 +++ {"user_expressions": []}
