@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.4
+    jupytext_version: 1.14.5
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -41,7 +41,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from datetime import datetime, timedelta
 import pandas as pd
-import rioxarray
 ```
 
 +++ {"user_expressions": []}
@@ -113,9 +112,7 @@ In the example below, we are are going to search for the following:
 
 ```{code-cell} ipython3
 cat_subset = cat.search(
-    experiment=["20C"],
-    frequency=['daily','monthly'],
-    variable=['WSPDSRFAV','U','V']
+    variable=['UBOT']
 )
 ```
 
@@ -162,13 +159,14 @@ ds_monthly
 ```
 
 ```{code-cell} ipython3
-# levelU0 = ds_monthly.U.sel(time=slice('1990-01-01', '1999-12-31')).isel(lev=0)
-# levelV0 = ds_monthly.V.sel(time=slice('1990-01-01', '1999-12-31')).isel(lev=0)
-# lev0 = np.sqrt(levelU**2*levelV**2)
+levelU0 = ds_monthly.U.sel(time=slice('1990-01-01', '1999-12-31')).isel(lev=0)
+levelV0 = ds_monthly.V.sel(time=slice('1990-01-01', '1999-12-31')).isel(lev=0)
+
+lev0 = np.sqrt(levelU**2+levelV**2)
 
 levelU30 = ds_monthly.U.sel(time=slice('1990-01-01', '1999-12-31')).isel(lev=-1)
 levelV30 = ds_monthly.V.sel(time=slice('1990-01-01', '1999-12-31')).isel(lev=-1)
-lev30 = np.sqrt(levelU30**2*levelV30**2)
+lev30 = np.sqrt(levelU30**2+levelV30**2)
 lev30_glob = (lev30*weight).mean(dim=('lat','lon'))
 ```
 
@@ -197,7 +195,7 @@ lev30_glob
 ```
 
 ```{code-cell} ipython3
-#time_axis = globavg.indexes['time'].to_datetimeindex()
+time_axis = lev30_glob.indexes['time'].to_datetimeindex()
 fig, ax = plt.subplots(figsize=(12,6))
 for ens in range(40):
     plt.plot(time_axis, lev30_glob.isel(member_id=ens),c='k',linewidth=0.1)
@@ -309,9 +307,10 @@ plt.savefig('proj_figs/patterns_90s.png',dpi=150)
 look at ERA5:
 
 ```{code-cell} ipython3
-era = xr.open_dataset('C:/Users/jillp/Downloads/clim/10m_speed_90s.nc')
+era = xr.open_dataset('~/Downloads/10m_speed_90s.nc')
 era10=era.si10
-time_axis
+era100 = xr.open_dataset('~/Downloads/100m_90s.nc')
+era100.u100**2+
 ```
 
 ```{code-cell} ipython3
@@ -319,7 +318,7 @@ glob_era = era10.mean(dim=('latitude','longitude'))
 fig, ax = plt.subplots(figsize=(12,6))
 
 plt.plot(time_axis, glob_era,c='k',linewidth=1)
-plt.plot(time_axis, globavg.mean(dim='member_id'),c='r',linewidth=1)
+plt.plot(time_axis, globavg.isel(member_id=4),c='r',linewidth=1)
 
 #plt.fill_between(time_axis, a1.isel(time=slice(12,24)), a2.isel(time=slice(12,24)), color = 'cyan', alpha = 0.7)
 plt.ylabel('Avg surface wind speed (m/s)',fontsize=13)
