@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.5
+    jupytext_version: 1.14.4
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -113,11 +113,10 @@ In the example below, we are are going to search for the following:
 
 ```{code-cell} ipython3
 cat_subset = cat.search(
-    experiment=["CTRL","20C","RCP85"],
-    variable='WSPDSRFAV',
+    experiment=["20C"],
+    frequency=['daily','monthly'],
+    variable=['WSPDSRFAV','U','V']
 )
-
-cat_subset
 ```
 
 ```{code-cell} ipython3
@@ -157,25 +156,62 @@ dset_dict = cat_subset.to_dataset_dict(zarr_kwargs={"consolidated": True}, stora
 We can access a particular dataset as follows:
 
 ```{code-cell} ipython3
-ds = dset_dict["atm.20C.daily"]
-ds
+ds_daily = dset_dict["atm.20C.daily"]
+ds_monthly = dset_dict["atm.20C.monthly"]
+ds_monthly
 ```
 
 ```{code-cell} ipython3
-case = ds.WSPDSRFAV.sel(time=slice('1990-01-01', '1999-12-31'))
+# levelU0 = ds_monthly.U.sel(time=slice('1990-01-01', '1999-12-31')).isel(lev=0)
+# levelV0 = ds_monthly.V.sel(time=slice('1990-01-01', '1999-12-31')).isel(lev=0)
+# lev0 = np.sqrt(levelU**2*levelV**2)
+
+levelU30 = ds_monthly.U.sel(time=slice('1990-01-01', '1999-12-31')).isel(lev=-1)
+levelV30 = ds_monthly.V.sel(time=slice('1990-01-01', '1999-12-31')).isel(lev=-1)
+lev30 = np.sqrt(levelU30**2*levelV30**2)
+lev30_glob = (lev30*weight).mean(dim=('lat','lon'))
+```
+
+```{code-cell} ipython3
+lev30_glob.to_netcdf('lev30_avg_mon1.nc')
+```
+
+```{code-cell} ipython3
+#case = ds.WSPDSRFAV.sel(time=slice('1990-01-01', '1999-12-31'))
 
 # weighting for avg
-coslat = np.cos(np.deg2rad(case.lat))
+coslat = np.cos(np.deg2rad(lev0.lat))
 weight = coslat / coslat.mean(dim='lat')
-globavg = (case*weight).mean(dim=('lat','lon'))
+#globavg = (case*weight).mean(dim=('lat','lon'))
+lev0_glob = (lev0*weight).mean(dim=('lat','lon'))
+```
+
+```{code-cell} ipython3
+lev0_glob.to_netcdf('lev0_avg_mon.nc')
+```
+
+```{code-cell} ipython3
+lev0_glob = xr.open_dataset('lev0_avg_mon.nc').__xarray_dataarray_variable__
+lev30_glob = xr.open_dataset('lev30_avg_mon1.nc').__xarray_dataarray_variable__
+lev30_glob
+```
+
+```{code-cell} ipython3
+#time_axis = globavg.indexes['time'].to_datetimeindex()
+fig, ax = plt.subplots(figsize=(12,6))
+for ens in range(40):
+    plt.plot(time_axis, lev30_glob.isel(member_id=ens),c='k',linewidth=0.1)
+plt.plot(time_axis, lev30_glob.mean(dim='member_id'),c='r',linewidth=1)
+#plt.plot(time_axis, lev0_glob.mean(dim='member_id'),c='b',linewidth=1)
+
+#plt.fill_between(time_axis, a1, a2, color = 'cyan', alpha = 0.4)
+plt.ylabel('Avg surface wind speed (m/s)',fontsize=13)
+plt.title('Global surface wind speed variability',fontsize=13)
+plt.grid()
 ```
 
 ```{code-cell} ipython3
 case_monthly=case.resample(time='1MS').mean(dim='time')
-```
-
-```{code-cell} ipython3
-case.sel(lat=slice(-90,0)).lat
 ```
 
 ```{code-cell} ipython3
@@ -187,7 +223,11 @@ weight1 = coslat / coslat.mean(dim='lat')
 ```
 
 ```{code-cell} ipython3
-
+globavg = xr.open_dataset('global_avg_mon.nc').__xarray_dataarray_variable__
+globavg
+navg = xr.open_dataset('north_avg_mon.nc').__xarray_dataarray_variable__
+savg = xr.open_dataset('south_avg_mon.nc').__xarray_dataarray_variable__
+savg
 ```
 
 ```{code-cell} ipython3
@@ -226,7 +266,7 @@ plt.fill_between(time_axis, a1, a2, color = 'cyan', alpha = 0.4)
 plt.ylabel('Avg surface wind speed (m/s)',fontsize=13)
 plt.title('Global surface wind speed variability',fontsize=13)
 plt.grid()
-#plt.savefig('global_spread_90s.png')
+plt.savefig('proj_figs/global_spread_90s2.png',dpi=150)
 ```
 
 ```{code-cell} ipython3
@@ -238,6 +278,7 @@ plt.fill_between(time_axis, n1, n2, color = 'cyan', alpha = 0.4)
 plt.ylabel('Avg surface wind speed (m/s)',fontsize=13)
 plt.title('Northern surface wind speed variability',fontsize=13)
 plt.grid()
+plt.savefig('proj_figs/north_spread_90s.png',dpi=150)
 ```
 
 ```{code-cell} ipython3
@@ -249,6 +290,7 @@ plt.fill_between(time_axis, s1, s2, color = 'cyan', alpha = 0.4)
 plt.ylabel('Avg surface wind speed (m/s)',fontsize=13)
 plt.title('Southern surface wind speed variability',fontsize=13)
 plt.grid()
+plt.savefig('proj_figs/south_spread_90s.png',dpi=150)
 ```
 
 ```{code-cell} ipython3
@@ -261,22 +303,25 @@ plt.ylabel('Avg surface wind speed (m/s)',fontsize=13)
 plt.title('Surface wind speed variability',fontsize=13)
 plt.legend()
 plt.grid()
+plt.savefig('proj_figs/patterns_90s.png',dpi=150)
 ```
 
 look at ERA5:
 
 ```{code-cell} ipython3
-xr = rioxarray.open_rasterio('C:/Users/jillp/Downloads/clim/10m_speed_90s.nc')
-xr
+era = xr.open_dataset('C:/Users/jillp/Downloads/clim/10m_speed_90s.nc')
+era10=era.si10
+time_axis
 ```
 
 ```{code-cell} ipython3
-time_axis = globavg.isel(time=slice(12,24)).indexes['time'].to_datetimeindex()
+glob_era = era10.mean(dim=('latitude','longitude'))
 fig, ax = plt.subplots(figsize=(12,6))
-for ens in range(40):
-    plt.plot(time_axis, globavg.isel(member_id=ens,time=slice(12,24)),c='k',linewidth=0.15)
 
-plt.fill_between(time_axis, a1.isel(time=slice(12,24)), a2.isel(time=slice(12,24)), color = 'cyan', alpha = 0.7)
+plt.plot(time_axis, glob_era,c='k',linewidth=1)
+plt.plot(time_axis, globavg.mean(dim='member_id'),c='r',linewidth=1)
+
+#plt.fill_between(time_axis, a1.isel(time=slice(12,24)), a2.isel(time=slice(12,24)), color = 'cyan', alpha = 0.7)
 plt.ylabel('Avg surface wind speed (m/s)',fontsize=13)
 plt.title('Global surface wind speed variability',fontsize=13)
 plt.grid()
